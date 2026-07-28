@@ -1,0 +1,19 @@
+[Desktop Entry]
+Type=Application
+Name=Tyty VPN
+Comment=Run the Tyty Windows proxy core on Ubuntu
+Icon=network-vpn
+Exec=@ROOT@/start.sh
+Terminal=false
+StartupNotify=false
+Categories=Network;
+Keywords=VPN;Proxy;Tyty;Mihomo;
+Actions=OpenWebUI;Stop;
+
+[Desktop Action OpenWebUI]
+Name=Open Node WebUI
+Exec=xdg-open http://127.0.0.1:29100
+
+[Desktop Action Stop]
+Name=Stop Tyty VPN
+Exec=@ROOT@/stop.sh

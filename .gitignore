@@ -1,0 +1,17 @@
+# Contains Tyty server addresses and node passwords.
+/config.yaml
+
+# Wine prefix, caches, logs, PID files, and other generated state.
+/runtime/
+
+# Optional staging directory for encrypted files copied from Windows.
+/windows-export/
+
+# Common local artifacts.
+*.log
+*.pid
+*~
+.DS_Store
+.vscode/
+.idea/
+/__pycache__/
