@@ -24,7 +24,31 @@
 5. `start.sh` 自动修改 GNOME 网络代理设置，`stop.sh` 自动关闭。
 6. 本地 WebUI 通过 Mihomo 控制 API 查询、测速和切换节点。
 
-## 目录说明
+## 依赖
+
+- Ubuntu 22.04 GNOME
+- `wine64`
+- Node.js
+- `curl`、`flock`、`pgrep` 和 `timeout`
+- `gsettings`
+- Python 3 和 `python3-yaml`
+- `python3-gi`、GTK 3 和 Ayatana AppIndicator
+- `xdg-open`（由 `xdg-utils` 提供）
+
+Wine 使用纯 64 位安装，不需要运行完整的 Tyty Windows 界面，也不依赖 Windows TUN 驱动。
+
+在新的 Ubuntu 22.04 电脑上可安装基础依赖：
+
+```bash
+sudo apt update
+sudo apt install --no-install-recommends wine64
+sudo apt install nodejs curl util-linux procps coreutils xdg-utils python3 python3-yaml
+sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1
+```
+
+GNOME 自带 `gsettings`。如果使用其他桌面环境，代理核心仍能运行，但 `start.sh` 可能无法自动修改桌面系统代理。
+
+## 使用说明
 
 ```text
 tyty-wine-core/
@@ -44,7 +68,7 @@ tyty-wine-core/
 
 `config.yaml` 包含服务器地址和节点密码，请勿上传、公开或发送给其他人。
 
-## 启动
+### 启动
 
 ```bash
 ./start.sh
@@ -59,7 +83,7 @@ tyty-wine-core/
 - 将 Ubuntu 网络代理设置为手动模式；
 - 将 HTTP、HTTPS 和 SOCKS 代理设置为当前实际使用的本地端口。
 
-## 选择节点
+### 选择节点
 
 浏览器打开：
 
@@ -77,7 +101,7 @@ WebUI 支持：
 
 WebUI 和 Mihomo 控制接口都只监听 `127.0.0.1`，不会向局域网开放。
 
-## Ubuntu 状态指示器
+### Ubuntu 状态指示器
 
 `start.sh` 会自动在 Ubuntu 顶栏右侧启动 Tyty AppIndicator。单击图标可查看：
 
@@ -90,7 +114,7 @@ WebUI 和 Mihomo 控制接口都只监听 `127.0.0.1`，不会向局域网开放
 
 GNOME AppIndicator 的主单击按桌面规范打开菜单。选择“打开状态窗口”会显示 GTK 状态窗口；中键单击图标可直接打开该窗口。
 
-## 检查连接
+### 检查连接
 
 ```bash
 ./test.sh
@@ -183,30 +207,6 @@ cd <仓库目录>
 | `127.0.0.1:29100` | 节点选择 WebUI |
 
 实际选中的核心端口记录在 `runtime/ports.env`。Indicator、WebUI、连接测试和 GNOME 系统代理会自动使用同一组端口，无需手动修改。
-
-## 依赖
-
-- Ubuntu 22.04 GNOME
-- `wine64`
-- Node.js
-- `curl`、`flock`、`pgrep` 和 `timeout`
-- `gsettings`
-- Python 3 和 `python3-yaml`
-- `python3-gi`、GTK 3 和 Ayatana AppIndicator
-- `xdg-open`（由 `xdg-utils` 提供）
-
-Wine 使用纯 64 位安装，不需要运行完整的 Tyty Windows 界面，也不依赖 Windows TUN 驱动。
-
-在新的 Ubuntu 22.04 电脑上可安装基础依赖：
-
-```bash
-sudo apt update
-sudo apt install --no-install-recommends wine64
-sudo apt install nodejs curl util-linux procps coreutils xdg-utils python3 python3-yaml
-sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1
-```
-
-GNOME 自带 `gsettings`。如果使用其他桌面环境，代理核心仍能运行，但 `start.sh` 可能无法自动修改桌面系统代理。
 
 ## 在另一台电脑上使用
 
