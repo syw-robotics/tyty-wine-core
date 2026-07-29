@@ -19,6 +19,7 @@ WINESERVER=/usr/lib/wine/wineserver
 MIXED_PORT=29674
 CONTROLLER_PORT=29090
 WEBUI_PORT=29100
+NODE_BIN=""
 
 mkdir -p "$PREFIX" "$WORK_DIR"
 if [[ -f "$PORTS_FILE" ]]; then
@@ -42,6 +43,20 @@ pid_matches() {
 
 port_open() {
   (: >/dev/tcp/127.0.0.1/"$1") 2>/dev/null
+}
+
+find_node() {
+  NODE_BIN=$(command -v node 2>/dev/null || true)
+  if [[ -n "$NODE_BIN" ]]; then
+    return
+  fi
+
+  local user_home candidate
+  user_home=$(getent passwd "$(id -u)" | cut -d: -f6)
+  while IFS= read -r candidate; do
+    NODE_BIN=$candidate
+  done < <(find "$user_home/.nvm/versions/node" -mindepth 3 -maxdepth 3 \
+    -type f -path '*/bin/node' 2>/dev/null | sort -V)
 }
 
 core_ready() {
@@ -103,15 +118,33 @@ start_webui() {
     return
   fi
   local existing
-  existing=$(find_service_pid "^node $ROOT/webui.js$")
+  existing=$(find_service_pid "(^|/)node $ROOT/webui.js$")
   if [[ -n "$existing" ]] && port_open "$WEBUI_PORT"; then
     echo "$existing" >"$WEB_PID_FILE"
     return
   fi
   rm -f "$WEB_PID_FILE"
+  find_node
+  if [[ -z "$NODE_BIN" ]]; then
+    echo "Error: Node.js was not found; WebUI cannot start" >&2
+    return 1
+  fi
   CORE_PORT="$CONTROLLER_PORT" WEBUI_PORT="$WEBUI_PORT" \
-    nohup node "$ROOT/webui.js" 9>&- >"$WEB_LOG_FILE" 2>&1 &
-  echo $! >"$WEB_PID_FILE"
+    nohup "$NODE_BIN" "$ROOT/webui.js" 9>&- >"$WEB_LOG_FILE" 2>&1 &
+  local pid=$!
+  echo "$pid" >"$WEB_PID_FILE"
+  for _ in $(seq 1 25); do
+    if port_open "$WEBUI_PORT"; then
+      return
+    fi
+    if ! kill -0 "$pid" 2>/dev/null; then
+      break
+    fi
+    sleep 0.1
+  done
+  echo "Error: WebUI failed to listen on 127.0.0.1:$WEBUI_PORT; see $WEB_LOG_FILE" >&2
+  rm -f "$WEB_PID_FILE"
+  return 1
 }
 
 start_indicator() {
@@ -136,7 +169,9 @@ finish_start() {
     -d '{"name":"新加坡02_NF/GPT"}' \
     "http://127.0.0.1:$CONTROLLER_PORT/proxies/Tyty" >/dev/null || \
     echo "Warning: preferred node is unavailable; using the profile default" >&2
-  start_webui
+  if ! start_webui; then
+    echo "Warning: proxy started without WebUI" >&2
+  fi
   start_indicator
   enable_system_proxy
   echo "HTTP/SOCKS: 127.0.0.1:$MIXED_PORT"
@@ -152,7 +187,7 @@ fi
 
 rm -f "$PID_FILE"
 # A dead core makes existing helpers stale, especially if the fallback ports change.
-pkill -u "$(id -u)" -f "^node $ROOT/webui.js$" 2>/dev/null || true
+pkill -u "$(id -u)" -f "(^|/)node $ROOT/webui.js$" 2>/dev/null || true
 pkill -u "$(id -u)" -f "^python3 $ROOT/indicator.py$" 2>/dev/null || true
 rm -f "$WEB_PID_FILE" "$INDICATOR_PID_FILE"
 stop_prefix

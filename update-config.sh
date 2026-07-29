@@ -45,7 +45,8 @@ config["socks-port"] = 0
 config["redir-port"] = 0
 config["tproxy-port"] = 0
 config["external-controller"] = "127.0.0.1:29090"
-config["rules"] = ["MATCH,Tyty"]
+# Preserve the exported rules so Mihomo's Rule mode remains meaningfully
+# different from Global mode. Listener changes above are local-only.
 config["geodata-mode"] = True
 
 config.setdefault("tun", {})["enable"] = False

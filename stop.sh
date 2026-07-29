@@ -27,7 +27,7 @@ if command -v gsettings >/dev/null 2>&1; then
   echo "Ubuntu system proxy disabled"
 fi
 
-stop_service "$WEB_PID_FILE" "^node $ROOT/webui.js$"
+stop_service "$WEB_PID_FILE" "(^|/)node $ROOT/webui.js$"
 stop_service "$INDICATOR_PID_FILE" "^python3 $ROOT/indicator.py$"
 
 if [[ -f "$PID_FILE" ]]; then

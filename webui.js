@@ -24,7 +24,7 @@ const page = `<!doctype html>
     h1 { margin: 0; font-size: 20px; font-weight: 650; }
     .status { font-size: 14px; color: #59636f; overflow-wrap: anywhere; }
     main { max-width: 1120px; margin: auto; padding: 20px; }
-    .toolbar { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: 10px; margin-bottom: 14px; }
+    .toolbar { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto; gap: 10px; margin-bottom: 14px; }
     input, button, select { height: 38px; border: 1px solid #cbd1d8; background: #fff; color: inherit; border-radius: 6px; font: inherit; }
     input { width: 100%; padding: 0 12px; }
     button, select { padding: 0 13px; cursor: pointer; }
@@ -49,6 +49,7 @@ const page = `<!doctype html>
   <main>
     <div class="toolbar">
       <input id="search" type="search" placeholder="Search nodes">
+      <select id="mode" title="Proxy mode"><option value="rule">Rule</option><option value="global">Global</option></select>
       <select id="sort"><option value="original">Original order</option><option value="delay">Latency</option><option value="name">Name</option></select>
       <button id="testAll" class="primary">Test all</button>
     </div>
@@ -56,7 +57,7 @@ const page = `<!doctype html>
     <div id="grid" class="grid"></div>
   </main>
   <script>
-    let state = { now: '', nodes: [], delays: new Map(), testing: new Set() };
+    let state = { now: '', mode: 'rule', connected: false, nodes: [], delays: new Map(), testing: new Set() };
     const el = id => document.getElementById(id);
     const api = async (path, options) => {
       const r = await fetch(path, options);
@@ -76,6 +77,8 @@ const page = `<!doctype html>
       if (el('sort').value === 'delay') nodes.sort((a,b) => (state.delays.get(a)||999999) - (state.delays.get(b)||999999));
       if (el('sort').value === 'name') nodes.sort((a,b) => a.localeCompare(b));
       el('status').textContent = state.now ? 'Current: ' + state.now : 'Core unavailable';
+      el('mode').value = state.mode;
+      el('mode').disabled = !state.connected;
       const working = [...state.delays.values()].filter(Boolean).length;
       el('summary').textContent = nodes.length + ' nodes' + (state.delays.size ? ', ' + working + ' responding' : '');
       el('grid').replaceChildren(...nodes.map(name => {
@@ -102,10 +105,19 @@ const page = `<!doctype html>
       await Promise.all(workers); button.disabled=false; render();
     }
     async function load() {
-      try { const r=await api('/api/group'); state.now=r.now; state.nodes=r.all||[]; render(); }
+      try {
+        const [group, config] = await Promise.all([api('/api/group'), api('/api/config')]);
+        state.now=group.now; state.nodes=group.all||[]; state.mode=config.mode || 'rule'; state.connected=true; render();
+      }
       catch(e) { el('status').textContent='Start the Tyty Wine core first'; }
     }
-    el('search').oninput=render; el('sort').onchange=render; el('testAll').onclick=testAll; load();
+    async function setMode() {
+      const select = el('mode'); const mode = select.value; select.disabled = true;
+      try { await api('/api/mode', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})}); state.mode=mode; }
+      catch(e) { alert('Could not change proxy mode: ' + e.message); }
+      render();
+    }
+    el('search').oninput=render; el('sort').onchange=render; el('mode').onchange=setMode; el('testAll').onclick=testAll; load();
   </script>
 </body>
 </html>`;
@@ -128,6 +140,20 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/group') {
       return json(res, await core('/proxies/' + encodeURIComponent(GROUP)));
+    }
+    if (url.pathname === '/api/config') {
+      return json(res, await core('/configs'));
+    }
+    if (url.pathname === '/api/mode' && req.method === 'POST') {
+      const body = await readJson(req);
+      if (!['rule', 'global'].includes(body.mode)) {
+        res.statusCode = 400;
+        return res.end('Unsupported proxy mode');
+      }
+      await core('/configs', {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mode: body.mode})
+      });
+      return json(res, {ok: true, mode: body.mode});
     }
     if (url.pathname === '/api/select' && req.method === 'POST') {
       const body = await readJson(req);
